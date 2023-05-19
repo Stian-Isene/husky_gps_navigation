@@ -1,0 +1,20 @@
+<launch>
+	<!-- Launching launch files -->
+	<!-- MBS Navigation stack-->
+	<!--<include file="$(find mbs_gps_navigation)/launch/gps_navigation.launch" /> --> 
+	<!-- navsat transform for transforming gps to cartesian coordinates -->
+	<include file="$(find my_husky_package)/launch/navsat_for_gps_transform.launch" />
+	<!-- Websocket -->
+	<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+
+	<!-- Launching nodes -->
+	<!-- Action server -->
+	<node pkg="my_husky_package" type="move_base_test.py" name="action_server" />
+	<!-- Relay node for EKF -->
+	<node pkg="my_husky_package" type="intermediary_odometry_for_EKF_controll.py" name="intermediary_odometry_for_EKF_controll_node" />
+	<!-- Service for transforming gps to cartesian coordinates -->
+	<node pkg="my_husky_package" type="gps_to_cartesian.py" name="gps_to_cartesian_node" />
+	<!-- Service for saving GPS data on local file-->
+	<node pkg="gps_user_service" type="gps_user_service_server.py" name="gps_user_service_server" />
+
+</launch>

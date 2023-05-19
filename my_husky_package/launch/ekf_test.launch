@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Run the ekf for map to odom config -->
+	<group ns="global_ekf_custom">
+		<node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization_with_gps_custom" >
+			<rosparam command="load" file="$(find my_husky_package)/config/gps_localization_config.yaml" />
+		</node>
+	</group>
+</launch>

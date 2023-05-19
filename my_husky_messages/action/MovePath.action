@@ -1,0 +1,8 @@
+#goal
+int8 input
+---
+#result
+string returned_result
+---
+#feedback
+string returned_feedback

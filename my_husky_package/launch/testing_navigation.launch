@@ -1,0 +1,18 @@
+<launch>
+	<!-- This is for testing in Gazebo -->
+
+	<!-- navsat transform for transforming gps to cartesian coordinates -->
+	<include file="$(find my_husky_package)/launch/navsat_for_gps_transform.launch" />
+	<!-- navsat transform for normal operation -->
+	<include file="$(find mbs_control)/launch/navsat.launch" />
+	<!-- EKF for map to Odom -->
+	<include file="$(find mbs_control)/launch/global_ekf_localization.launch" />
+	<!-- move_base -->
+	<include file="$(find husky_navigation)/launch/move_base_mapless_demo.launch" />
+
+	<!-- Relay node for EKF -->
+	<!--<node pkg="my_husky_package" type="intermediary_odometry_for_EKF_controll.py" name="intermediary_odometry_for_EKF_controll_node" /> -->
+	<!-- Service for transforming gps to cartesian coordinates -->
+	<node pkg="my_husky_package" type="gps_to_cartesian.py" name="gps_to_cartesian_node" />
+
+</launch>
