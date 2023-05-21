@@ -2,7 +2,7 @@
 This is a collection of several directories dedicated to navigating a ClearPath Husky.
 
 ## my_husky_messages:
-A collection of ROS service messages and action messages to be used in the my_husky_package project.
+A collection of ROS service messages and action messages used in the my_husky_package project.
 
 ## my_husky_package:
 ROS package with a simulation world in gazebo, and several nodes for navigating with GPS sensor.
