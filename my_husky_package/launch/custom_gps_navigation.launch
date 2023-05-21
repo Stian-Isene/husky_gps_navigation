@@ -1,7 +1,7 @@
 <launch>
 	<!-- Launching launch files -->
 	<!-- MBS Navigation stack-->
-	<!--<include file="$(find mbs_gps_navigation)/launch/gps_navigation.launch" /> --> 
+	<include file="$(find mbs_gps_navigation)/launch/gps_navigation.launch" />
 	<!-- navsat transform for transforming gps to cartesian coordinates -->
 	<include file="$(find my_husky_package)/launch/navsat_for_gps_transform.launch" />
 	<!-- Websocket -->
