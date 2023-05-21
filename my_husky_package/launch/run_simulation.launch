@@ -1,4 +1,4 @@
 <launch>
-	<include file="$(find my_husky_package)/launch/tunnel_world.launch" />
+	<include file="$(find my_husky_package)/launch/simulation_world.launch" />
 	<include file="$(find my_husky_package)/launch/spawn_husky.launch" />
 </launch>
