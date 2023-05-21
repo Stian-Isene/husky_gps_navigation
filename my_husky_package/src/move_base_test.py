@@ -22,6 +22,8 @@ class ActionServer:
     def __init__(self):
         #INitializes the action server
         self.server = actionlib.SimpleActionServer('start_path', MovePathAction, execute_cb=self.start_action, auto_start=False)
+
+        #Initializes a publisher for real time debugging
         self.pub_bug_talker = rospy.Publisher('bug_reporter', String, queue_size=10)
 
         #Starts the action server
@@ -33,14 +35,22 @@ class ActionServer:
         #This function starts when the action server is being called
         #In the goal there is an int, this will be used for controll.
 
-        # Goal = 1: Move to the GPS coordinates found in the GPS file
+        # Goal = 1: Move to the UTM coordinates from the GPS points found in the file
         # Goal = 2: Move the path found in the pathplanner file
+        # Goal = 3: Converts the GPS coordinates to UTM coordinates, and save it to file
+        # Goal = 4: Move to GPS coordinates transformed to Cartesian coordinates.
+
+        #Gets the GPS data from a file
         package_name = 'gps_user_service'
         file_name = '/gps_coordinates.txt'
         self.gps_points_list = self.get_data_from_file(package_name, file_name)
+
+        #Publishes the number of gps points found in the file.
         self.pub_bug_talker.publish(f"The list of gps points contains {len(self.gps_points_list)} entries")
+
+        #Does the action based on the goal
         if goal.input == 1:
-            self.move_to_gps_points()
+            self.move_to_utm_points()
         elif goal.input == 2:
             self.follow_path_planner()
         elif goal.input == 3:
@@ -50,64 +60,75 @@ class ActionServer:
         else:
             rospy.loginfo("Action not found")
 
-
+        #Finishes the action
         self.server.set_succeeded(self._result) #Sets the result of the action.
 
-    def move_to_gps_points(self):
 
-        cartesian_coordinates = rospy.ServiceProxy('gps_to_cartesian_service', GPSToCartesian)
+    """
+    Moving to a point in the UTM coordinate frame
+    
+    Converts the GPS points to UTM points
+    Saves in a list as MoveBaseGoal
+    Sends them to the movebase_client
+    """
+    def move_to_utm_points(self):
 
+        #Creates the list to store the goals
         move_base_goal_list = list()
 
+        #Creating the template of the MoveBaseGoals
         move_base_goal_temp = MoveBaseGoal()
         move_base_goal_temp.target_pose.header.frame_id = "utm"
+        #Initialises the orientation, this needs to be changed
         move_base_goal_temp.target_pose.pose.orientation.x = 0
         move_base_goal_temp.target_pose.pose.orientation.y = 0
         move_base_goal_temp.target_pose.pose.orientation.z = 0
         move_base_goal_temp.target_pose.pose.orientation.w = 1
 
 
-
-
-        cartesian_coordinates_list = list()
+        #Creates the MoveBaseGoal from the GPS Points
         for i in range(len(self.gps_points_list)):
-            #rospy.loginfo(f"Latitude: {self.gps_points_list[i][0]}")
-            #rospy.loginfo(f"Longitude: {self.gps_points_list[i][1]}")
-            #respond = cartesian_coordinates(self.gps_points_list[i][1], self.gps_points_list[i][0])
-            #cartesian_coordinates.wait_for_service()
-            #rospy.loginfo(f"x = {respond.x_axis}")
-            #rospy.loginfo(f"y = {respond.y_axis}")
 
-            # Copies the object, so we can use the same template
-            #move_base_goal_temp = copy.deepcopy(move_base_goal_temp)
-            #move_base_goal_temp.target_pose.pose.position.x = respond.x_axis
-            #move_base_goal_temp.target_pose.pose.position.x = respond.y_axis
-            #cartesian_coordinates_list.append((respond.x_axis, respond.y_axis))
-            #move_base_goal_list.append(move_base_goal_temp)
 
             lat = self.gps_points_list[i][0]
             lon = self.gps_points_list[i][1]
 
+            #Converts from GPS to UTM
             temp = utm.from_latlon(lat,lon)
 
+            #Creates a new instance of the ActionBaseGoal class
             move_base_goal_temp = copy.deepcopy(move_base_goal_temp)
+            #Fills it with corresponding values
             move_base_goal_temp.target_pose.pose.position.x = temp[0]
             move_base_goal_temp.target_pose.pose.position.y = temp[1]
 
+            #Appends the list
             move_base_goal_list.append(move_base_goal_temp)
 
 
         rospy.loginfo("Starting to move")
+        #Sends the list of the ActionBaseGoals to the movebase_client for sequential navigation
         self.movebase_client(move_base_goal_list)
 
-
+    """
+        Moves sequentially to points using GPS points transformed to Cartesian points
+        
+        Transform from GPS to Cartesian using a ROS Service
+        
+        Saves them to a list of MoveBaseGoal
+        
+        Sends them to a movebase_client for sequential navigation
+    """
     def move_to_gps_points_using_cartesian(self):
+        #Initializes the connection to the transform service
         cartesian_coordinates = rospy.ServiceProxy('gps_to_cartesian_service', GPSToCartesian)
 
         move_base_goal_list = list()
 
+        #Creating the template of the MoveBaseGoals
         move_base_goal_temp = MoveBaseGoal()
         move_base_goal_temp.target_pose.header.frame_id = "map"
+        #Initialises the orientation, this needs to be changed
         move_base_goal_temp.target_pose.pose.orientation.x = 0
         move_base_goal_temp.target_pose.pose.orientation.y = 0
         move_base_goal_temp.target_pose.pose.orientation.z = 0
@@ -115,11 +136,11 @@ class ActionServer:
 
 
 
-
-        cartesian_coordinates_list = list()
         for i in range(len(self.gps_points_list)):
             rospy.loginfo(f"Latitude: {self.gps_points_list[i][0]}")
             rospy.loginfo(f"Longitude: {self.gps_points_list[i][1]}")
+
+            #Sends the GPS points and recieves the cartesian points
             respond = cartesian_coordinates(self.gps_points_list[i][1], self.gps_points_list[i][0])
             cartesian_coordinates.wait_for_service()
             rospy.loginfo(f"x = {respond.x_axis}")
@@ -129,24 +150,37 @@ class ActionServer:
             move_base_goal_temp = copy.deepcopy(move_base_goal_temp)
             move_base_goal_temp.target_pose.pose.position.x = respond.x_axis
             move_base_goal_temp.target_pose.pose.position.x = respond.y_axis
-            cartesian_coordinates_list.append((respond.x_axis, respond.y_axis))
+
+            #Appends the list of goals
             move_base_goal_list.append(move_base_goal_temp)
 
 
 
         rospy.loginfo("Starting to move")
+        #Sends the list of the ActionBaseGoals to the movebase_client for sequential navigation
         self.movebase_client(move_base_goal_list)
 
-
+    """
+        Follows the path in sweeping_path.txt
+        
+        Gets the path from sweeping_path.txt
+        
+        Creates the MoveBaseActions
+        
+        Sends to the movebase_client for sequential navigation
+    """
     def follow_path_planner(self):
+        #Read the point from the file sweeping_path.txt
         package_name = 'my_husky_package'
         file_name = '/include/sweeping_path.txt'
         path_from_file = self.get_data_from_file(package_name, file_name)
 
         move_base_goal_list = list()
 
+        #Creates the MoveBaseGoal template
         move_base_goal_temp = MoveBaseGoal()
         move_base_goal_temp.target_pose.header.frame_id = 'utm'
+        #Initializes the orientation. This needs to be changed
         move_base_goal_temp.target_pose.pose.orientation.x = 0
         move_base_goal_temp.target_pose.pose.orientation.y = 0
         move_base_goal_temp.target_pose.pose.orientation.z = 0
@@ -162,14 +196,24 @@ class ActionServer:
             rospy.loginfo(f"X: {path_from_file[i][0]}")
             rospy.loginfo(f"Y: {path_from_file[i][1]}")
 
+            #Appends the list of MoveBaseGoals
             move_base_goal_list.append(move_base_goal_temp)
 
         rospy.loginfo("Starting to move")
+        #Sending the MOveBaseGoals to the movebase_client for sequential navigation
         self.movebase_client(move_base_goal_list)
 
 
-
+    """
+        Reading the data from the file located inside a ROS package
+        Input:
+            package_name - The name of the ROS package
+            file_name - The path to the file, including the name
+        Output: The data points in the file in a list of tuples
+    """
     def get_data_from_file(self, package_name: str, file_name: str):
+
+        #Check if the package can be found, then get the path to the package
         try:
             rp = rospkg.RosPack()
             package_path = rp.get_path(package_name)
@@ -177,15 +221,22 @@ class ActionServer:
             rospy.logerr(f"Package not found: {e}")
             return None
 
+        #Complete the path to the file
         file_path = package_path + file_name
 
+        #Create the list to contain all data points
         gps_point_list = []
 
+        #Try to open file
         try:
             with open(file_path, 'r') as file:
+                #Go through every line in the file
                 for line in file:
+                    #Split the line with a comma
                     values = line.strip().split(',')
+                    #Convert to float and save in a tuple
                     gps_point_tuple = (float(values[0]), float(values[1]))
+                    #Append to a list that contains the data points
                     gps_point_list.append(gps_point_tuple)
         except FileNotFoundError as e:
             rospy.logerr(f"File not found: {e}")
@@ -193,7 +244,13 @@ class ActionServer:
 
         return gps_point_list
 
-
+    """"
+        Saves cartesian points to a file
+        
+        Converts the GPS points to cartesian
+        
+        Saves them to a file
+    """
     def save_data_to_file(self):
         #Declare the service client
         cartesian_coordinates = rospy.ServiceProxy('gps_to_cartesian_service', GPSToCartesian)
@@ -212,10 +269,19 @@ class ActionServer:
 
 
 
-
+    """
+        Move base client for sequential navigation.
+        
+        Takes a list of MoveBaseAction goals as input.
+        
+        Creates a action client to the move_base action server supplied by the navigation stack
+        
+        Publishes a point
+        Waits for a responce
+        Publishes next point
+        
+    """
     def movebase_client(self, path: list):
-        #Sends a list of MoveBaseGoals that we got from the pathplanner.
-
 
 
         # Create an action client called "move_base" with action definition file "MoveBaseAction"
@@ -223,48 +289,31 @@ class ActionServer:
         # Waits until the action server has started up and started listening for goals.
         client.wait_for_server()
 
+        #Publishes the number of entries in the path to the debugger.
         self.pub_bug_talker.publish(f"The movebase list has {len(path)} entries")
-        #client.send_goal(path[0])
-        # Sends the goal to the action server.
-        #publisher_hack = rospy.Publisher("/move_base/goal", MoveBaseGoal, queue=10)
-        #publisher_hack.publish(path[0])
+
+        # Sends the goals to the action server.
         for goal in path:
+            #Publishing the goal to the debugger
             self.pub_bug_talker.publish("Publishing goal")
             self.pub_bug_talker.publish(str(goal.target_pose.pose.position.x))
             self.pub_bug_talker.publish(str(goal.target_pose.pose.position.y))
+
+            #Send the current goal to the action server
             client.send_goal(goal)
-            rospy.loginfo(f"Moving to position:")
-            rospy.loginfo(f"X: {goal.target_pose.pose.position.x}")
-            rospy.loginfo(f"Y: {goal.target_pose.pose.position.y}")
 
-
-            #rospy.loginfo(goal.target_pose.pose.position.x)
-            wait = client.wait_for_result()
+            # Wait for the move_base to respond with completed goal
             client.wait_for_result()
+
+            # Wait one second after finishing goal. This is for testing purposes
             time.sleep(1)
-            if not wait:
-                rospy.logerr("Action server not available!")
-                rospy.signal_shutdown("Action server not available!")
-            else:
-                # Result of executing the action
-                rospy.loginfo(client.get_result())
+
             rospy.loginfo("Point Reached")
 
         self.pub_bug_talker.publish("Movement finished")
 
 
-        # #client.send_goal(goal)
-        # # Waits for the server to finish performing the action.
-        # wait = client.wait_for_result()
-        # # If the result doesn't arrive, assume the Server is not available
-        # if not wait:
-        #     rospy.logerr("Action server not available!")
-        #     rospy.signal_shutdown("Action server not available!")
-        # else:
-        #     # Result of executing the action
-        #     return client.get_result()
 
-        # If the python node is executed as main process (sourced directly)
 
 
 if __name__ == '__main__':
@@ -273,11 +322,3 @@ if __name__ == '__main__':
     server = ActionServer()
     rospy.spin()
 
-    # try:
-    #     # Initializes a rospy node to let the SimpleActionClient publish and subscribe
-    #     rospy.init_node('movebase_client_py')
-    #     result = movebase_client()
-    #     if result:
-    #         rospy.loginfo("Goal execution done!")
-    # except rospy.ROSInterruptException:
-    #     rospy.loginfo("Navigation test finished.")
