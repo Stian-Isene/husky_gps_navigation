@@ -3,11 +3,6 @@
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(find my_husky_package)/worlds/map_test.world"/>
     <!-- more default parameters can be changed here -->
-    <!-- Launching Husky in the raspberry greenhouse tunnel field world -->
-    
-<!-- Uncomment this part to spawn the husky at the same time as the world. This comment is done for testing purposes
-
-	<include file="$(find husky_gazebo)/launch/spawn_husky.launch"></include>
--->
+   
 </include>
 </launch>
