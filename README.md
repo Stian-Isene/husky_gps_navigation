@@ -1,5 +1,5 @@
 # husky_gps_navigation
-This is a collection of several directories dedicated to navigating a ClearPath Husky.
+This is a collection of several directories dedicated to navigating a Clearpath Husky.
 
 ## my_husky_messages:
 A collection of ROS service messages and action messages used in the my_husky_package project.
